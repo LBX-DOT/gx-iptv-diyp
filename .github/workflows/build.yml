@@ -1,0 +1,47 @@
+name: Build DIYP txt source
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # UTC时间0点，每天自动运行转换
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch & Convert gx.m3u to diyp.txt
+        run: |
+          #拉取原始m3u源
+          curl -L -o gx.m3u https://raw.githubusercontent.com/Healer-sys/Home/refs/heads/main/iptv/gx.m3u
+          
+          python3 << 'EOF'
+          import re
+          lines_out = []
+          name = None
+          with open("gx.m3u","r",encoding="utf-8") as f:
+              for line in f:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  if line.startswith("#EXTINF"):
+                      #提取逗号后面频道名称
+                      parts = line.split(",",1)
+                      if len(parts)>=2:
+                          name = parts[1].strip()
+                  elif not line.startswith("#"):
+                      #播放地址行
+                      if name and (line.startswith("http")):
+                          lines_out.append(f"{name},{line}")
+                          name = None
+          with open("diyp.txt","w",encoding="utf-8") as fw:
+              for l in lines_out:
+                  fw.write(l+"\n")
+          EOF
+
+      - name: deploy pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
