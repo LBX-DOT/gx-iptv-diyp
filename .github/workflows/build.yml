@@ -2,7 +2,10 @@ name: Build DIYP txt source
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # UTC时间0点，每天自动运行转换
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write  # ✅关键：给token开启仓库写入权限，解决git 128错误
 
 jobs:
   build:
@@ -13,7 +16,6 @@ jobs:
 
       - name: Fetch & Convert gx.m3u to diyp.txt
         run: |
-          #拉取原始m3u源
           curl -L -o gx.m3u https://raw.githubusercontent.com/Healer-sys/Home/refs/heads/main/iptv/gx.m3u
           
           python3 << 'EOF'
@@ -26,12 +28,10 @@ jobs:
                   if not line:
                       continue
                   if line.startswith("#EXTINF"):
-                      #提取逗号后面频道名称
                       parts = line.split(",",1)
                       if len(parts)>=2:
                           name = parts[1].strip()
                   elif not line.startswith("#"):
-                      #播放地址行
                       if name and (line.startswith("http")):
                           lines_out.append(f"{name},{line}")
                           name = None
